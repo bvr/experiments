@@ -1,0 +1,3 @@
+use URI::Escape
+
+say uri_escape("/record-time.pl?task_user=martinc&amp;&task_desc=6465456#&task_ref=NO:PROJECT--GATEKEEPING&tabbsave=other&tms_date_for=2011-02-28&form_date_sel=2011-02-28");

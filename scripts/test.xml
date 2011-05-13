@@ -1,0 +1,18 @@
+<root>
+<A title="A1">
+  <B title="B1">
+   <C title="C1">
+    <params>param=ABC1</params>
+    <params>param=ABC2</params>
+   </C>
+  </B>
+</A>
+<D title="D1">
+  <B title="B2">
+   <C title="C2">
+     <params>param=DBC1</params>
+     <params>param=DBC2</params>
+   </C>
+  </B>
+</D>
+</root>

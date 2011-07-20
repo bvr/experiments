@@ -27,6 +27,13 @@ for my $par (in $doc->Paragraphs) {
     print $par->Range->Text();
 }
 
+# print content of tables
+my $tables = $word->ActiveDocument->Tables;
+for my $table (in $tables) {
+    my $tableText = $table->ConvertToText({Separator => wdSeparateByTabs});
+    print "Table: ", $tableText->Text(), "\n";
+}
+
 # export as formatted text
 $doc->SaveAs({
     FileName   => 'd:\\Test.txt',

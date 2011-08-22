@@ -40,8 +40,32 @@ sub eratosthenes {
     return $sum;
 }
 
+# eratosthenes allocating only even numbers
+sub eratosthenes2 {
+    my $image;
+    my $last_index = (MAX_PRIME-1) >> 1;
+    vec($image,$last_index,1) = 0;        # allocate string ~ 125k
+
+    my $crosslimit = int(sqrt(MAX_PRIME) - 1) >> 1;
+    for my $i (1 .. $crosslimit) {
+        if(vec($image,$i,1) == 0) {       # 2*i+1 is prime, mark multiples
+            for(my $j = 2*$i*($i+1); $j <= $last_index; $j += 2*$i+1) {
+                vec($image,$j,1) = 1;
+            }
+        }
+    }
+
+    my $sum = 2;        # 2 is prime
+    for my $i (1 .. $last_index) {
+        $sum += 2*$i+1  if vec($image,$i,1) == 0;
+    }
+
+    return $sum;
+}
+
 say naive();            # cca 13.0s
 say eratosthenes();     # cca  2.4s, about 4x faster
+say eratosthenes2();    # cca  1.1s, about 2x faster than eratosthenes
 
 # from projecteuler.net 007_overview.pdf
 sub is_prime {

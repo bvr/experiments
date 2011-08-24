@@ -11,7 +11,7 @@ down, left, right, or diagonally) in the 20×20 grid?
 
 =cut
 
-use 5.010;
+use 5.010; use strict; use warnings;
 use List::Util qw(max reduce);
 
 my @grid = map { [ map { 0+$_ } split /[\s]+/ ] } split /\n/, <<END;
@@ -39,7 +39,7 @@ END
 
 my $max = 0;
 for my $r (0 .. @grid - 4) {
-    for my $c (0 .. @{$grid[$y]} - 4) {
+    for my $c (0 .. @{$grid[$r]} - 4) {
         $max = max $max, reduce { $a*$b } map { $grid[$r + $_][$c       ] } 0..3;    # col
         $max = max $max, reduce { $a*$b } map { $grid[$r     ][$c + $_  ] } 0..3;    # row
         $max = max $max, reduce { $a*$b } map { $grid[$r + $_][$c + $_  ] } 0..3;    # diag

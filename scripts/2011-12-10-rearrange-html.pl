@@ -1,19 +1,23 @@
 
+# reply to http://stackoverflow.com/questions/8452164/how-to-rearrange-html-content-with-htmltreebuilder
+
 use strict;
 use HTML::TreeBuilder;
 use File::Slurp;
 use List::MoreUtils qw(part);
 
-my $tree = HTML::TreeBuilder->new_from_content(do { local $/; <DATA> });
+my $tree = HTML::TreeBuilder->new_from_content(
+    do { local $/; <DATA> }
+);
 
 my %decade = ();
 
-for my $h ( $tree->look_down( class => 'basic' ) ) {
+for my $h ($tree->look_down(class => 'basic')) {
 
-    edit_links( $h );
+    edit_links($h);
 
     my ($year) = ($h->as_text =~ /.*?\((\d+)\).*/);
-    my $dec = (int($year/10) + 1)  * 10;
+    my $dec = (int($year / 10) + 1) * 10;
 
     $decade{$dec} ||= [];
     push @{$decade{$dec}}, $h;
@@ -22,11 +26,10 @@ for my $h ( $tree->look_down( class => 'basic' ) ) {
 for my $dec (sort { $b <=> $a } keys %decade) {
     my $filename = "decades/" . $dec . "-" . ($dec - 9) . ".html";
 
-    my $idx = 0;
-    my @items = map { $_->as_HTML('<>&',' ',{}) } @{ $decade{$dec} };
+    my $idx      = 0;
+    my @items    = map { $_->as_HTML('<>&', ' ', {}) } @{$decade{$dec}};
     my $contents = join('',
-        '<table>',
-        (map { "<tr>@$_</tr>" } part { int($idx++ / 5) } @items),
+        '<table>', (map {"<tr>@$_</tr>"} part { int($idx++ / 5) } @items),
         '</table>');
 
     warn($filename, $contents);
@@ -35,14 +38,14 @@ for my $dec (sort { $b <=> $a } keys %decade) {
 sub edit_links {
     my $h = shift;
 
-    for my $link ( $h->find_by_tag_name( 'a' ) ) {
-        my $href = '../'.$link->attr( 'href' );
-        $link->attr( 'href', $href );
+    for my $link ($h->find_by_tag_name('a')) {
+        my $href = '../' . $link->attr('href');
+        $link->attr('href', $href);
     }
 
-    for my $link ( $h->find_by_tag_name( 'img' ) ) {
-        my $src = '../'.$link->attr( 'src' );
-        $link->attr( 'src', $src );
+    for my $link ($h->find_by_tag_name('img')) {
+        my $src = '../' . $link->attr('src');
+        $link->attr('src', $src);
     }
 }
 

@@ -1,24 +1,18 @@
+
+use strict;
 use Games::Maze;
+use Data::Dump;
 
-#
-# Create and print the maze and the solution to the maze.
-#
-my $minos = Games::Maze->new(dimensions => [15, 15, 3]);
-$minos->make();
-print "\n\nThe Maze...\n", scalar($minos->to_ascii());
-$minos->solve();
-print "\n\nThe Solution...\n", scalar($minos->to_ascii()), "\n";
+my $maze = Games::Maze->new(
+    form       => 'Rectangle',
+    cell       => 'Quad',
+    dimensions => [15, 15, 1]
+);
 
-#
-# We're curious about the maze properties.
-#
-my %p = $minos->describe();
+$maze->make();
+print "\n\nThe Maze...\n", scalar($maze->to_ascii());
+$maze->solve();
+print "\n\nThe Solution...\n", scalar($maze->to_ascii()), "\n";
 
-foreach (sort keys %p) {
-    if (ref $p{$_} eq "ARRAY") {
-        print "$_ => [", join(", ", @{$p{$_}}), "]\n";
-    }
-    else {
-        print "$_ => ", $p{$_}, "\n";
-    }
-}
+# maze properties.
+dd { $maze->describe() };

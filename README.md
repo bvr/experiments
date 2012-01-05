@@ -1,12 +1,9 @@
 
-What is it
-===========
+# What is it
 
 Various experiment scripts, mostly perl. Some written by me, some from internet.
 
-
-Autohotkey helper to create them
----------------------------------
+## Autohotkey helper to create them
 
 When the .ahk script is active, copy snippet into clipboard, press Win+Shift+P,
 type base of filename and confirm with Enter. The script will be created

@@ -14,7 +14,7 @@ sub cached {
 }
 
 sub payload_spare {
-    shift->cached('_payload_spare' => sub {
+    shift->cached(_payload_spare => sub {
         warn "calculation";
         145
     });

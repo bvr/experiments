@@ -17,7 +17,7 @@ my @workers;
 for (1 .. $num_workers) {
     push @workers, async {
         while (defined(my $unit = $q->dequeue())) {
-            print("$unit\n");
+            print("Processed $unit\n");
         }
     };
 }

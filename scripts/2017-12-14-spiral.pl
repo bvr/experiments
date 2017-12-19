@@ -1,7 +1,47 @@
 
-use Test::More;
-use Data::Dump;
+use 5.16.3;
 
+package FourQuadMatrix {
+    use Moo;
+    use Function::Parameters;
+
+    has data => (is => 'ro', default => sub { +{} });
+
+    method _addr($x, $y) {
+        my $quad = ($x>=0 ? '+' : '-') . ($y>=0 ? '+' : '-');
+
+        return \($self->data->{$quad}[abs $x][abs $y]);
+    }
+
+    method set($x, $y, $value) {
+        ${ $self->_addr($x, $y) } = $value;
+    }
+
+    method get($x, $y) {
+        return ${ $self->_addr($x, $y) };
+    }
+
+    method sum_adjacent_to($x, $y) {
+        my $sum = 0;
+        for my $i (-1 .. 1) {
+            for my $j (-1 .. 1) {
+                next if $i==0 && $j==0;
+                my $val = ${ $self->_addr($x+$i, $y+$j) };
+                $sum += $val if defined $val;
+            }
+        }
+        return $sum;
+    }
+}
+
+
+use Test::More;
+use Iterator::Simple qw(iterator);
+use List::Util qw(sum);
+use Data::Dump;
+use Carp::Always;
+
+# part 1
 is man_dist(1),      0;
 is man_dist(12),     3;
 is man_dist(23),     2;
@@ -21,7 +61,12 @@ is man_dist(24),     3;
 is man_dist(25),     4;
 is man_dist(347991), 480;
 
-use Iterator::Simple qw(iterator);
+# part 2
+is first_largest_value(148), 304;
+is first_largest_value(347991), 349975;
+
+done_testing;
+
 
 =head2 dir_and_steps
 
@@ -43,10 +88,14 @@ sub dir_and_steps {
 
 =head2 spiral_memory
 
-    my $sm_iter = spiral_memory();
+    my $sm_iter = spiral_memory($part);
     ($value, $x, $y) = $sm_iter->next;
 
-Produce values in the spiral along with the value location. Starting location
+The parameter is part of the exercise and it affects the iterator following way:
+
+=over
+
+=item 1. Produce values in the spiral along with the value location. Starting location
 is on (0,0) and value 1, moving left and up first, forming the spiral:
 
     17  16  15  14  13
@@ -55,9 +104,20 @@ is on (0,0) and value 1, moving left and up first, forming the spiral:
     20   7   8   9  10
     21  22  23---> ...
 
+=item 2. Produce values in the spiral that new number is sum of all adjacent squares already filled:
+
+    147  142  133  122   59
+    304    5    4    2   57
+    330   10    1    1   54
+    351   11   23   25   26
+    362  747  806--->   ...
+
+=back
+
 =cut
 
 sub spiral_memory {
+    my ($part) = @_;
     my ($value, $x, $y) = (1, 0, 0);
     my $step = 0;
 
@@ -69,16 +129,24 @@ sub spiral_memory {
         [-1,  0],       # right
         [ 0, -1],       # down
     );
+    my $fqm = FourQuadMatrix->new();
+    $fqm->set($x, $y, $value);
 
     iterator {
         my $rv = [$value, $x, $y];
 
-        # calculate the next value
-        $value++;
-
         # move in current direction
         $x += $dirs[$dir][0];
         $y += $dirs[$dir][1];
+
+        # calculate the next value
+        if($part == 1) {
+            $value++;
+        }
+        else {
+            $value = $fqm->sum_adjacent_to($x,$y);
+            $fqm->set($x, $y, $value);
+        }
 
         # after number of steps, new direction and step count
         if(++$step == $steps) {
@@ -100,19 +168,38 @@ Calculates shortest distance to center of the spiral from item of parameter valu
 =cut
 
 sub man_dist {
-    my $target = shift;
+    my ($target) = @_;
 
-    my $locations = spiral_memory();
+    my $locations = spiral_memory(1);
     while(my ($value, $x, $y) = $locations->next) {
         return abs($x) + abs($y)
             if $value >= $target;
     }
 }
 
+=head2 first_largest_value
 
-=head2 man_dist
+    my $value = first_largest_value(349975);
 
-    $dist = man_dist(126);
+Finds first largest value found according to second part of the exercise.
+
+=cut
+
+sub first_largest_value {
+    my ($target) = @_;
+
+    my $locations = spiral_memory(2);
+    while(my ($value, $x, $y) = $locations->next) {
+        return $value
+            if $value >= $target;
+    }
+
+}
+
+
+=head2 man_dist_old
+
+    $dist = man_dist_old(126);
 
 Calculates shortest distance to center of the spiral from item of parameter value.
 This is the method we built with Ondra on last Thursday.
@@ -155,16 +242,17 @@ sub man_dist_old {
     }
 }
 
-done_testing;
-
 
 =head1 ASSIGNMENT
 
 --- Day 3: Spiral Memory ---
 
-You come across an experimental new kind of memory stored on an infinite two-dimensional grid.
+You come across an experimental new kind of memory stored on an infinite
+two-dimensional grid.
 
-Each square on the grid is allocated in a spiral pattern starting at a location marked 1 and then counting up while spiraling outward. For example, the first few squares are allocated like this:
+Each square on the grid is allocated in a spiral pattern starting at a location
+marked 1 and then counting up while spiraling outward. For example, the first
+few squares are allocated like this:
 
 17  16  15  14  13
 18   5   4   3  12
@@ -172,7 +260,11 @@ Each square on the grid is allocated in a spiral pattern starting at a location 
 20   7   8   9  10
 21  22  23---> ...
 
-While this is very space-efficient (no squares are skipped), requested data must be carried back to square 1 (the location of the only access port for this memory system) by programs that can only move up, down, left, or right. They always take the shortest path: the Manhattan Distance between the location of the data and square 1.
+While this is very space-efficient (no squares are skipped), requested data
+must be carried back to square 1 (the location of the only access port for this
+memory system) by programs that can only move up, down, left, or right. They
+always take the shortest path: the Manhattan Distance between the location of
+the data and square 1.
 
 For example:
 
@@ -181,7 +273,8 @@ For example:
     Data from square 23 is carried only 2 steps: up twice.
     Data from square 1024 must be carried 31 steps.
 
-How many steps are required to carry the data from the square identified in your puzzle input all the way to the access port?
+How many steps are required to carry the data from the square identified in
+your puzzle input all the way to the access port?
 
 Your puzzle input is 347991.
 
@@ -189,7 +282,9 @@ Your puzzle answer was 480.
 
 --- Part Two ---
 
-As a stress test on the system, the programs here clear the grid and then store the value 1 in square 1. Then, in the same allocation order as shown above, they store the sum of the values in all adjacent squares, including diagonals.
+As a stress test on the system, the programs here clear the grid and then store
+the value 1 in square 1. Then, in the same allocation order as shown above,
+they store the sum of the values in all adjacent squares, including diagonals.
 
 So, the first few squares' values are chosen as follows:
 
@@ -199,7 +294,8 @@ So, the first few squares' values are chosen as follows:
     Square 4 has all three of the aforementioned squares as neighbors and stores the sum of their values, 4.
     Square 5 only has the first and fourth squares as neighbors, so it gets the value 5.
 
-Once a square is written, its value does not change. Therefore, the first few squares would receive the following values:
+Once a square is written, its value does not change. Therefore, the first few
+squares would receive the following values:
 
 147  142  133  122   59
 304    5    4    2   57

@@ -1,57 +1,53 @@
 use 5.16.3;
 use Test::More;
 use Function::Parameters;
-use Path::Class qw(file);
 use Data::Dump;
 
-# is dance(programs => 5, dance => 's1,x3/4,pe/b'), 'baedc', 'Example after dance';
+is dance(programs => 5, dance => 's1,x3/4,pe/b'), 'baedc', 'Example after dance';
 my $dance = do { local $/; <DATA> };
-# is dance(programs => 16, dance => $dance), 'ociedpjbmfnkhlga', 'Part 1';
+is dance(programs => 16, dance => $dance), 'ociedpjbmfnkhlga', 'Part 1';
+is dance(programs => 16, line_input => 'ociedpjbmfnkhlga', dance => $dance), 'adeflockihgjmbnp', 'Part 1 - another round';
 
-is dance(programs => 16, dance => $dance, rounds => 1_000_000_000), 'ociedpjbmfnkhlga', 'Part 2';
+is dance(programs => 16, dance => $dance, rounds => 2), 'adeflockihgjmbnp', 'Part 2 - two rounds';
+is dance(programs => 16, dance => $dance, rounds => 10), 'clgepafjhiobmdkn', 'Part 2 - 10 rounds';
+is dance(programs => 16, dance => $dance, rounds => 10_000), 'clgepafjhiobmdkn', 'Part 2 - analysis';
+
+is +(1_000_000_000-1) % 60, 39, 'Target round';
+
 done_testing;
 
 
-fun dance(:$programs, :$dance, :$rounds = 1) {
-    my $line = substr(join('', 'a'..'z'), 0, $programs);
+fun dance(:$programs, :$line_input, :$dance, :$rounds = 1) {
+    my @alph = ('a'..'z');
 
-    my $round_code = <<END;
-#include <stdio.h>
-#include <string.h>
+    my $line = $line_input ? $line_input : substr(join('', @alph), 0, $programs);
 
-int main() {
-    char line[] = "$line";
-    char buffer[$programs];
-    int i;
+    my %seen;
+    for my $i (0..$rounds - 1) {
+        for (split /,/, $dance) {
+            when (/s(\d+)/)        { $line = substr($line, -$1, $1, '') . $line }
+            when (/x(\d+)\/(\d+)/) { my $fst = substr($line, $1, 1); substr($line, $1, 1, substr($line, $2, 1, $fst)) }
+            when (/p(\w)\/(\w)/)   { eval qq{\$line =~ tr/$1$2/$2$1/} }
+            default                { die "unknown construct $_"; }
+        }
 
-    for(i = 0; i < $rounds; i++) {
-END
-    for (split /,/, $dance) {
-        chomp;
-        $round_code .= "        // $_\n";
-        when (/s(\d+)/)        { $round_code .= "        { memmove(buffer, line + ($programs - $1), $1); memmove(line + $1, line, $programs - $1); memmove(line, buffer, $1); }\n" }
-        when (/x(\d+)\/(\d+)/) { $round_code .= "        { char fst = line[$1]; line[$1] = line[$2]; line[$2] = fst; }\n" }
-        when (/p(\w)\/(\w)/)   { $round_code .= "        { char *p1 = strchr(line, '$1'); char *p2 = strchr(line, '$2'); *p1 = '$2'; *p2 = '$1'; }\n" }
-        default                { die "unknown construct $_"; }
+        # detect cycles
+        if(defined $seen{$line}) {
+            warn "$i: $line was seen at round $seen{$line}\n";
+        }
+        else {
+            $seen{$line} = $i;
+        }
     }
-    $round_code .= <<END;
-    }
-    printf("%s", line);
-}
-END
-    file('run.c')->spew($round_code);
-    my $output = `cmd /c "gcc -orun.exe run.c && run.exe"`;
 
-#    for my $i (1..$rounds) {
-#        $line = $code->($line);
-#        warn "Round: $i" if ($i % 10_000) == 0;
-#    }
-    return $output;
+    return $line;
 }
 
 =head1 ASSIGNMENT
 
 http://adventofcode.com/2017/day/16
+
+=head2
 
 =cut
 

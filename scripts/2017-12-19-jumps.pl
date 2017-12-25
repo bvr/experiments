@@ -1,6 +1,7 @@
 
 use 5.16.3;
 use Test::More;
+use Function::Parameters;
 use Data::Dump;
 use Iterator::Simple qw(iter list imap);
 
@@ -14,12 +15,9 @@ is count_steps(code => $input_code,      start => 0, reduce => 1), 27477714, 'My
 done_testing;
 
 
-sub count_steps {
-    my %p = @_;
-    my @code = @{ $p{code} };
-    my $pc   = $p{start} // 0;
-    my $reduce = $p{reduce} // 0;
-
+fun count_steps(:$code, :$start = 0, :$reduce = 0) {
+    my @code = @$code;
+    my $pc = $start;
     my $steps = 0;
     while($pc >= 0 && $pc <= $#code) {
 
@@ -40,15 +38,10 @@ sub count_steps {
     return $steps;
 }
 
-sub show_status {
-    my %p = @_;
-    my @code = @{ $p{code} };
-    my $pc   = $p{pc};
-    my $step = $p{step};
-
-    my @mask = (" %-3d ") x @code;
+fun show_status(:$code_ref, :$pc, :$step) {
+    my @mask = (" %-3d ") x @$code_ref;
     $mask[$pc] = "(%-3d)";
-    say(sprintf "%-2d: ".join('', @mask), $step, @code);
+    say(sprintf "%-2d: ".join('', @mask), $step, @$code_ref);
 }
 
 =head1 ASSIGNMENT

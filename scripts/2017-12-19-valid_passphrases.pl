@@ -1,22 +1,28 @@
 
 use 5.16.3;
+use Test::More;
 use Iterator::Simple qw(iter imap);
 
 my $passphrases = imap { chomp; $_ } iter(\*DATA);
 
-my @valid = (0, 0);
+my %valid = ( no_dups => 0, no_anagrams => 0 );
 while(my $pp = $passphrases->next) {
     my @words = split /\s+/, $pp;
-    my %unique;
-    @unique{ @words } = ();
-    $valid[0]++ if keys %unique == @words;
-
     my @words_sorted = map { my @letters = split //, $_; join '', sort @letters } @words;
-    my %unique_sorted;
-    @unique_sorted{ @words_sorted } = ();
-    $valid[1]++ if keys %unique_sorted == @words;
+
+    $valid{no_dups}++     if count_unique(@words) == @words;
+    $valid{no_anagrams}++ if count_unique(@words_sorted) == @words;
 }
-warn "Valid part 1 = $valid[0],  part 2 = $valid[1]\n";
+is $valid{no_dups}, 451, 'No duplicates count - part 1';
+is $valid{no_anagrams}, 223, 'No anagrams count - part 2';
+
+done_testing;
+
+sub count_unique {
+    my %unique;
+    @unique{@_} = ();
+    return scalar keys %unique;
+}
 
 =head1 ASSIGNMENT
 

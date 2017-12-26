@@ -9,47 +9,68 @@ package Program {
     use Types::Standard qw(HashRef ArrayRef InstanceOf Enum);
 
     has id         => (is => 'ro', isa => Enum [qw(0 1)], required => 1);
+    has code       => (is => 'ro', isa => ArrayRef,       required => 1);
     has target     => (is => 'rw', isa => InstanceOf ['Program'], writer => 'set_target');
     has _buffer    => (is => 'ro', isa => ArrayRef, default => sub { +[] });
-    has registers  => (is => 'ro', isa => HashRef,  default => sub { +{} });
+    has registers  => (is => 'lazy', isa => HashRef);
     has pc         => (is => 'rw', writer => 'set_pc', default => 0);
     has last_sound => (is => 'rw', writer => 'set_last_sound', predicate => 1);
+    has sent      => (is => 'rwp', default => 0);
 
     has instruction_set => (is => 'ro', isa => HashRef, default => sub { +{
-        snd => method($x)     { $self->set_last_sound($self->value($x)) },
-        rcv => method($x)     { if($self->value($x)) { $self->set_pc(-2); } },
+
+        snd => method($x) {
+            my $vx = $self->value($x);
+            $self->set_last_sound($vx);
+            $self->inc_sent;
+            $self->target->push_to_buffer($vx);
+        },
+        rcv => method($x) {
+            if($self->value($x)) {
+                $self->get_from_buffer();
+            }
+        },
+
+        jgz => method($x, $y) { if($self->value($x)) { $self->set_pc($self->pc + $self->value($y)-1) } },
+
         set => method($x, $y) { $self->set_register($x, $self->value($y)) },
         add => method($x, $y) { $self->set_register($x, $self->value($x) + $self->value($y)) },
         mul => method($x, $y) { $self->set_register($x, $self->value($x) * $self->value($y)) },
         mod => method($x, $y) { $self->set_register($x, $self->value($x) % $self->value($y)) },
-        jgz => method($x, $y) { if($self->value($x)) { $self->set_pc($self->pc + $self->value($y)-1) } },
     } });
 
-    method execute(@code) {
-        $self->set_register('p', $self->id);
-        while($self->pc >=0 && defined $code[$self->pc]) {
-            my ($inst, $x, $y) = split /\s+/, $code[$self->pc];
+    method _build_registers {
+        return { p => $self->id };
+    }
+
+    method step {
+        if(! $self->is_done) {
+            my ($inst, $x, $y) = split /\s+/, $self->code->[$self->pc];
             my $op = $self->instruction_set->{$inst} or die "Unknown instruction $inst";
             $op->($self, $x, $y);
             $self->set_pc($self->pc + 1);
         }
     }
 
+    method execute {
+        while(! $self->is_done) {
+            $self->step;
+        }
+    }
+
+    method is_done {
+        return ! ($self->pc >=0 && defined $self->code->[$self->pc]);
+    }
+
     method value($reg_or_value) {
         return $reg_or_value =~ /^[a-z]$/ ? $self->registers->{$reg_or_value} : $reg_or_value;
     }
 
-    method set_register($reg, $value) {
-        $self->registers->{$reg} = $value;
-    }
+    method set_register($reg, $value) { $self->registers->{$reg} = $value; }
+    method _inc_sent { $self->_set_sent($self->sent + 1); }
 
-    method push_to_buffer($value) {
-        push @{ $self->_buffer }, $value;
-    }
-
-    method get_from_buffer {
-        return shift @{ $self->_buffer };
-    }
+    method push_to_buffer($value)     { push @{ $self->_buffer }, $value; }
+    method get_from_buffer            { return shift @{ $self->_buffer }; }
 }
 
 my $example = <<END;

@@ -3,6 +3,55 @@ use Test::More;
 use Function::Parameters;
 use Data::Dump;
 
+package Program {
+    use Moo;
+    use Function::Parameters;
+    use Types::Standard qw(HashRef ArrayRef InstanceOf Enum);
+
+    has id         => (is => 'ro', isa => Enum [qw(0 1)], required => 1);
+    has target     => (is => 'rw', isa => InstanceOf ['Program'], writer => 'set_target');
+    has _buffer    => (is => 'ro', isa => ArrayRef, default => sub { +[] });
+    has registers  => (is => 'ro', isa => HashRef,  default => sub { +{} });
+    has pc         => (is => 'rw', writer => 'set_pc', default => 0);
+    has last_sound => (is => 'rw', writer => 'set_last_sound', predicate => 1);
+
+    has instruction_set => (is => 'ro', isa => HashRef, default => sub { +{
+        snd => method($x)     { $self->set_last_sound($self->value($x)) },
+        rcv => method($x)     { if($self->value($x)) { $self->set_pc(-2); } },
+        set => method($x, $y) { $self->set_register($x, $self->value($y)) },
+        add => method($x, $y) { $self->set_register($x, $self->value($x) + $self->value($y)) },
+        mul => method($x, $y) { $self->set_register($x, $self->value($x) * $self->value($y)) },
+        mod => method($x, $y) { $self->set_register($x, $self->value($x) % $self->value($y)) },
+        jgz => method($x, $y) { if($self->value($x)) { $self->set_pc($self->pc + $self->value($y)-1) } },
+    } });
+
+    method execute(@code) {
+        $self->set_register('p', $self->id);
+        while($self->pc >=0 && defined $code[$self->pc]) {
+            my ($inst, $x, $y) = split /\s+/, $code[$self->pc];
+            my $op = $self->instruction_set->{$inst} or die "Unknown instruction $inst";
+            $op->($self, $x, $y);
+            $self->set_pc($self->pc + 1);
+        }
+    }
+
+    method value($reg_or_value) {
+        return $reg_or_value =~ /^[a-z]$/ ? $self->registers->{$reg_or_value} : $reg_or_value;
+    }
+
+    method set_register($reg, $value) {
+        $self->registers->{$reg} = $value;
+    }
+
+    method push_to_buffer($value) {
+        push @{ $self->_buffer }, $value;
+    }
+
+    method get_from_buffer {
+        return shift @{ $self->_buffer };
+    }
+}
+
 my $example = <<END;
 set a 1
 add a 2
@@ -18,34 +67,20 @@ END
 
 my $input = do { local $/; <DATA> };
 
-my %registers = ();
-my @code = split /\n/, $input;
-my $last_sound = undef;
-my $pc = 0;
-EXEC: while(defined $code[$pc]) {
-    my ($inst, $x, $y) = split /\s+/, $code[$pc];
-    # warn "$code[$pc]\n";
-    for($inst) {
-        when('snd') { $last_sound = reg_value($x); warn "sound ".$last_sound; }
-        when('set') { $registers{$x} = reg_value($y); }
-        when('add') { $registers{$x} = reg_value($x) + reg_value($y); }
-        when('mul') { $registers{$x} = reg_value($x) * reg_value($y); }
-        when('mod') { $registers{$x} = reg_value($x) % reg_value($y); }
-        when('rcv') { if(reg_value($x) != 0) { warn "recover $last_sound"; last EXEC } }
-        when('jgz') { if(reg_value($x) != 0) { $pc += reg_value($y)-1 } }
-    }
-    # dd \%registers;
-    $pc++;
+{
+    my $prog = Program->new(id => 0);
+    $prog->execute(split /\n/, $example);
+    is $prog->last_sound, 4, 'Example output';
 }
-is $last_sound, 7071, 'Last sound - part 1';
 
+{
+    my $prog = Program->new(id => 0);
+    $prog->execute(split /\n/, $input);
+    is $prog->last_sound, 7071, 'Last sound - part 1';
+}
 
 done_testing;
 
-fun reg_value($reg_or_value) {
-    # warn "reg_value $reg_or_value\n";
-    return $reg_or_value =~ /^[a-z]$/ ? $registers{$reg_or_value} : $reg_or_value;
-}
 
 =head1 ASSIGNMENT
 
